@@ -1,35 +1,63 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 const initialBets = [
-  { id: createId(), brazil: 4, scotland: 0, name: "Naldo", paid: true },
-  { id: createId(), brazil: 4, scotland: 1, name: "Naldo", paid: true },
-  { id: createId(), brazil: 4, scotland: 2, name: "Naldo", paid: true },
-  { id: createId(), brazil: 3, scotland: 1, name: "Willans", paid: true },
-  { id: createId(), brazil: 2, scotland: 0, name: "Sibeli", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Sibeli", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Lucas Emanuel", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Ana Paula", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Juciara", paid: true },
-  { id: createId(), brazil: 0, scotland: 1, name: "Anna", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Nalanda", paid: true },
-  { id: createId(), brazil: 2, scotland: 0, name: "Cristina", paid: true },
-  { id: createId(), brazil: 2, scotland: 1, name: "Kimberly", paid: true },
-  { id: createId(), brazil: 1, scotland: 2, name: "Matos", paid: true },
-  { id: createId(), brazil: 2, scotland: 0, name: "Raida", paid: true },
-  { id: createId(), brazil: 3, scotland: 0, name: "Ana Pollyana", paid: true },
-  { id: createId(), brazil: 2, scotland: 0, name: "Lucas Sampaio", paid: true },
-  { id: createId(), brazil: 2, scotland: 0, name: "Fernando", paid: true },
-  { id: createId(), brazil: 3, scotland: 1, name: "Fernando", paid: true },
-  { id: createId(), brazil: 1, scotland: 0, name: "Maida", paid: true },
-  { id: createId(), brazil: 5, scotland: 1, name: "Wallyson", paid: true },
-  { id: createId(), brazil: 3, scotland: 0, name: "GG", paid: true },
-  { id: createId(), brazil: 5, scotland: 0, name: "GG", paid: true },
-  { id: createId(), brazil: 2, scotland: 2, name: "Anna", paid: true },
+  { id: "initial-001", brazil: 4, scotland: 0, name: "Naldo", paid: true },
+  { id: "initial-002", brazil: 4, scotland: 1, name: "Naldo", paid: true },
+  { id: "initial-003", brazil: 4, scotland: 2, name: "Naldo", paid: true },
+  { id: "initial-004", brazil: 3, scotland: 1, name: "Willans", paid: true },
+  { id: "initial-005", brazil: 2, scotland: 0, name: "Sibeli", paid: true },
+  { id: "initial-006", brazil: 2, scotland: 1, name: "Sibeli", paid: true },
+  { id: "initial-007", brazil: 2, scotland: 1, name: "Lucas Emanuel", paid: true },
+  { id: "initial-008", brazil: 2, scotland: 1, name: "Ana Paula", paid: true },
+  { id: "initial-009", brazil: 2, scotland: 1, name: "Juciara", paid: true },
+  { id: "initial-010", brazil: 0, scotland: 1, name: "Anna", paid: true },
+  { id: "initial-011", brazil: 2, scotland: 1, name: "Nalanda", paid: true },
+  { id: "initial-012", brazil: 2, scotland: 0, name: "Cristina", paid: true },
+  { id: "initial-013", brazil: 2, scotland: 1, name: "Kimberly", paid: true },
+  { id: "initial-014", brazil: 1, scotland: 2, name: "Matos", paid: true },
+  { id: "initial-015", brazil: 2, scotland: 0, name: "Raida", paid: true },
+  { id: "initial-016", brazil: 3, scotland: 0, name: "Ana Pollyana", paid: true },
+  { id: "initial-017", brazil: 2, scotland: 0, name: "Lucas Sampaio", paid: true },
+  { id: "initial-018", brazil: 2, scotland: 0, name: "Fernando", paid: true },
+  { id: "initial-019", brazil: 3, scotland: 1, name: "Fernando", paid: true },
+  { id: "initial-020", brazil: 1, scotland: 0, name: "Maida", paid: true },
+  { id: "initial-021", brazil: 5, scotland: 1, name: "Wallyson", paid: true },
+  { id: "initial-022", brazil: 3, scotland: 0, name: "GG", paid: true },
+  { id: "initial-023", brazil: 5, scotland: 0, name: "GG", paid: true },
+  { id: "initial-024", brazil: 2, scotland: 2, name: "Anna", paid: true },
 ];
 
-const STORAGE_KEY = "sps-saude-bolao";
 const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
 const BET_VALUE = 10;
 const ADMIN_PASSWORD = "Wvg569645";
+const firebaseConfig = {
+  apiKey: "AIzaSyDolWd39yw26GA6k3TFsoO7LU0BlsH-L8k",
+  authDomain: "projeto-bolao-3e431.firebaseapp.com",
+  projectId: "projeto-bolao-3e431",
+  storageBucket: "projeto-bolao-3e431.firebasestorage.app",
+  messagingSenderId: "249211270979",
+  appId: "1:249211270979:web:3dde4e2656f8fc6fcbe1f6",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const betsCollection = collection(db, "bets");
+const betsQuery = query(betsCollection, orderBy("createdAt", "desc"));
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -46,32 +74,8 @@ const adminMessage = document.querySelector("#admin-message");
 const adminLogout = document.querySelector("#admin-logout");
 
 let lastPalpiteText = "";
-let bets = loadBets();
+let bets = [];
 let isAdmin = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
-
-function createId() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-
-  return `bet-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function loadBets() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return initialBets;
-
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : initialBets;
-  } catch {
-    return initialBets;
-  }
-}
-
-function saveBets() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
-}
 
 function normalize(value) {
   return value.trim().replace(/\s+/g, " ");
@@ -230,7 +234,38 @@ function render() {
   renderGroups();
 }
 
-form.addEventListener("submit", (event) => {
+async function seedInitialBetsIfEmpty() {
+  const snapshot = await getDocs(betsCollection);
+  if (!snapshot.empty) return;
+
+  await Promise.all(
+    initialBets.map((bet, index) =>
+      setDoc(doc(betsCollection, bet.id), {
+        brazil: bet.brazil,
+        scotland: bet.scotland,
+        name: bet.name,
+        paid: bet.paid,
+        createdAt: new Date(2026, 0, index + 1),
+      }),
+    ),
+  );
+}
+
+function listenToBets() {
+  onSnapshot(
+    betsQuery,
+    (snapshot) => {
+      bets = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      render();
+    },
+    (error) => {
+      console.error(error);
+      message.textContent = "Não foi possível carregar os palpites online.";
+    },
+  );
+}
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(form);
   const name = normalize(data.get("name"));
@@ -255,36 +290,44 @@ form.addEventListener("submit", (event) => {
   }
 
   lastPalpiteText = `${scoreLabel({ brazil, scotland })} - ${name}`;
-  bets.unshift({ id: createId(), name, brazil, scotland, paid });
-  saveBets();
-  render();
-  form.reset();
-  document.querySelector("#brazil").value = 2;
-  document.querySelector("#scotland").value = 1;
-  message.textContent =
-    "Clique no número abaixo e envie seu comprovante para análise. Assim que o pagamento for confirmado seu palpite constará na lista de apsotas.";
-  message.dataset.copyText = "";
-  message.classList.remove("clickable");
+
+  try {
+    await addDoc(betsCollection, { name, brazil, scotland, paid, createdAt: serverTimestamp() });
+    form.reset();
+    document.querySelector("#brazil").value = 2;
+    document.querySelector("#scotland").value = 1;
+    message.textContent =
+      "Clique no número abaixo e envie seu comprovante para análise. Assim que o pagamento for confirmado seu palpite constará na lista de apsotas.";
+    message.dataset.copyText = "";
+    message.classList.remove("clickable");
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Não foi possível salvar seu palpite. Tente novamente.";
+  }
 });
 
-table.addEventListener("click", (event) => {
+table.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
   if (!isAdmin) return;
 
   const id = button.dataset.id;
   const action = button.dataset.action;
+  const currentBet = bets.find((bet) => bet.id === id);
+  if (!currentBet) return;
 
-  if (action === "toggle") {
-    bets = bets.map((bet) => (bet.id === id ? { ...bet, paid: !bet.paid } : bet));
+  try {
+    if (action === "toggle") {
+      await updateDoc(doc(betsCollection, id), { paid: !currentBet.paid });
+    }
+
+    if (action === "remove") {
+      await deleteDoc(doc(betsCollection, id));
+    }
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Não foi possível atualizar esse palpite.";
   }
-
-  if (action === "remove") {
-    bets = bets.filter((bet) => bet.id !== id);
-  }
-
-  saveBets();
-  render();
 });
 
 adminForm.addEventListener("submit", (event) => {
@@ -339,3 +382,10 @@ searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 
 render();
+
+seedInitialBetsIfEmpty()
+  .then(listenToBets)
+  .catch((error) => {
+    console.error(error);
+    message.textContent = "Não foi possível conectar ao Firebase.";
+  });
