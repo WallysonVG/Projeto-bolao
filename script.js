@@ -28,6 +28,7 @@ const initialBets = [
 const STORAGE_KEY = "sps-saude-bolao";
 const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
+const WHATSAPP_LINK = "https://wa.me/5594992633276";
 const BET_VALUE = 10;
 const ADMIN_PASSWORD = "Wvg569645";
 
@@ -324,18 +325,9 @@ copyButton.addEventListener("click", async () => {
 });
 
 if (pixKey) {
-  pixKey.addEventListener("click", async () => {
-    const pixText = pixKey.textContent.trim();
-    if (!pixText) return;
-
-    try {
-      await navigator.clipboard.writeText(pixText);
-      message.textContent = "Chave Pix copiada para colar no banco.";
-      message.dataset.copyText = "";
-      message.classList.remove("clickable");
-    } catch {
-      message.textContent = "Não foi possível copiar a chave Pix.";
-    }
+  pixKey.addEventListener("click", () => {
+    const text = encodeURIComponent("Olá! Quero falar sobre o bolão SPS Saúde.");
+    window.open(`${WHATSAPP_LINK}?text=${text}`, "_blank", "noopener");
   });
 }
 
