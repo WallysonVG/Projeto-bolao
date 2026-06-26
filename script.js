@@ -163,6 +163,7 @@ function renderTable() {
 }
 
 function renderGroups() {
+  const totalPrize = bets.filter((bet) => bet.paid).length * BET_VALUE;
   const groups = bets.reduce((acc, bet) => {
     const key = `${bet.brazil}x${bet.scotland}`;
     acc[key] ||= [];
@@ -178,7 +179,7 @@ function renderGroups() {
     })
     .map(([score, names]) => {
       const [brazil, scotland] = score.split("x");
-      const groupValue = formatCurrency(names.length * BET_VALUE);
+      const groupValue = formatCurrency(totalPrize / names.length);
       return `
         <article class="group-card">
           <strong>
@@ -189,7 +190,7 @@ function renderGroups() {
             </span>
             <span class="group-meta">
               <span class="group-count">${names.length}</span>
-              <span class="group-value">${groupValue}</span>
+              <span class="group-value">${groupValue} cada</span>
             </span>
           </strong>
           <p>${names.join(", ")}</p>
