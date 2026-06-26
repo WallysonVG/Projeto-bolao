@@ -55,8 +55,6 @@ select {
 }
 
 .match-panel {
-  position: sticky;
-  top: 1rem;
   align-self: start;
   overflow: hidden;
 }
@@ -644,10 +642,6 @@ tbody tr:last-child td {
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
-  }
-
-  .match-panel {
-    position: static;
   }
 
   .stats-grid {
