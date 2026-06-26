@@ -27,6 +27,7 @@ const initialBets = [
 
 const STORAGE_KEY = "sps-saude-bolao";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
+const BET_VALUE = 10;
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -78,6 +79,10 @@ function scoreChipHtml(bet) {
   return `<span class="score-flag brazil" aria-hidden="true"></span>${bet.brazil}x${bet.scotland}<span class="score-flag japan" aria-hidden="true"></span>`;
 }
 
+function formatCurrency(value) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function buildShareText() {
   const grouped = bets
     .slice()
@@ -115,14 +120,14 @@ function renderStats() {
   const total = bets.length;
   const paid = bets.filter((bet) => bet.paid).length;
   const pending = total - paid;
-  const totalValue = paid * 10;
+  const totalValue = paid * BET_VALUE;
   const uniqueScores = new Set(bets.map((bet) => `${bet.brazil}x${bet.scotland}`)).size;
 
   const stats = [
     ["Palpites", total],
     ["Pagos", paid],
     ["Pendentes", pending],
-    ["Arrecadado", totalValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })],
+    ["Arrecadado", formatCurrency(totalValue)],
     ["Placares únicos", uniqueScores],
   ];
 
@@ -173,6 +178,7 @@ function renderGroups() {
     })
     .map(([score, names]) => {
       const [brazil, scotland] = score.split("x");
+      const groupValue = formatCurrency(names.length * BET_VALUE);
       return `
         <article class="group-card">
           <strong>
@@ -181,7 +187,10 @@ function renderGroups() {
               ${brazil} x ${scotland}
               <span class="score-flag japan" aria-hidden="true"></span>
             </span>
-            <span class="group-count">${names.length}</span>
+            <span class="group-meta">
+              <span class="group-count">${names.length}</span>
+              <span class="group-value">${groupValue}</span>
+            </span>
           </strong>
           <p>${names.join(", ")}</p>
         </article>

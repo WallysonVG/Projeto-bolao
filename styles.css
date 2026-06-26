@@ -584,8 +584,21 @@ tbody tr:last-child td {
   color: var(--ink);
 }
 
-.group-count {
+.group-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.1rem;
+  flex: 0 0 auto;
+}
+
+.group-count,
+.group-value {
   color: var(--blue);
+}
+
+.group-value {
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .group-card p {
