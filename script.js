@@ -174,7 +174,14 @@ function renderGroups() {
       const [brazil, scotland] = score.split("x");
       return `
         <article class="group-card">
-          <strong>🇧🇷 ${brazil} x ${scotland} 🇯🇵 <span>${names.length}</span></strong>
+          <strong>
+            <span class="group-score">
+              <span class="score-flag brazil" aria-hidden="true"></span>
+              ${brazil} x ${scotland}
+              <span class="score-flag japan" aria-hidden="true"></span>
+            </span>
+            <span class="group-count">${names.length}</span>
+          </strong>
           <p>${names.join(", ")}</p>
         </article>
       `;
