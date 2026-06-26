@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bolão SPS Saúde</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="match-panel" aria-labelledby="page-title">
+        <figure class="header-illustration">
+          <img src="bolao-campeoes.png" alt="Bolão SPS Saúde" />
+        </figure>
+        <div class="brand-row">
+          <div class="brand-caption">
+            <div class="title-stack">
+              <div class="title-main-row">
+                <span class="title-big">BOLÃO</span>
+                <span class="title-tag">SPS</span>
+              </div>
+              <span class="title-sub">SAÚDE</span>
+            </div>
+            <p class="description">Adicione palpites, marque pagamento e compartilhe a lista para WhatsApp.</p>
+          </div>
+          <div class="prize-pill" title="Valor por palpite">
+            <span>R$</span>
+            <strong>10,00</strong>
+          </div>
+        </div>
+
+        <div class="scoreboard" aria-label="Jogo Brasil contra Japão">
+          <div class="team brazil">
+            <span class="flag" aria-hidden="true"></span>
+            <span>Brasil</span>
+          </div>
+          <div class="versus">x</div>
+          <div class="team japan">
+            <span class="flag" aria-hidden="true"></span>
+            <span>Japão</span>
+          </div>
+        </div>
+
+        <form class="bet-form" id="bet-form">
+          <label>
+            Nome
+            <input id="name" name="name" type="text" autocomplete="name" placeholder="Ex.: Ana Paula" required />
+          </label>
+
+          <div class="goals-grid">
+            <label>
+              Brasil
+              <input id="brazil" name="brazil" type="number" min="0" max="20" value="2" required />
+            </label>
+            <label>
+              Japão
+              <input id="scotland" name="scotland" type="number" min="0" max="20" value="1" required />
+            </label>
+          </div>
+
+          <label class="check-row">
+            <input id="paid" name="paid" type="checkbox" checked />
+            <span>Pagamento confirmado</span>
+          </label>
+
+          <button class="primary-button" type="submit">Adicionar palpite</button>
+          <p class="form-message" id="form-message" role="status"></p>
+        </form>
+
+        <div class="pix-box" aria-label="Dados do Pix">
+          <div>
+            <span class="muted">Chave Pix</span>
+            <strong id="pix-key" class="copy-pix" title="Clique para copiar">94992633276</strong>
+          </div>
+          <div>
+            <span class="muted">Responsável</span>
+            <strong>Walison Vieira Galvão / Banco Inter</strong>
+          </div>
+        </div>
+
+        <p class="tagline">Se tem Neymar eu acredito!</p>
+      </section>
+
+      <section class="content-panel">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">Participantes</p>
+            <h2>Lista de palpites</h2>
+          </div>
+          <div class="actions">
+            <button class="icon-button" id="copy-whatsapp" type="button" title="Copiar lista para WhatsApp" aria-label="Copiar lista para WhatsApp">
+              ⧉
+            </button>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="stats-grid" aria-label="Resumo do bolão"></div>
+
+        <div class="filter-row">
+          <label>
+            Buscar
+            <input id="search" type="search" placeholder="Nome, placar ou status" />
+          </label>
+          <label>
+            Status
+            <select id="status-filter">
+              <option value="all">Todos</option>
+              <option value="paid">Pagos</option>
+              <option value="pending">Pendentes</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Placar</th>
+                <th>Nome</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bets-table"></tbody>
+          </table>
+        </div>
+
+        <section class="group-panel" aria-labelledby="groups-title">
+          <div class="section-title">
+            <p class="eyebrow">Conferência rápida</p>
+            <h2 id="groups-title">Palpites por placar</h2>
+          </div>
+          <div class="score-groups" id="score-groups"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="empty-row">
+      <tr>
+        <td colspan="4" class="empty-state">Nenhum palpite encontrado.</td>
+      </tr>
+    </template>
+
+    <script src="script.js"></script>
+  </body>
+</html>
