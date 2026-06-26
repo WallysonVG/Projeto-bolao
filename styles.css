@@ -58,10 +58,7 @@ select {
   position: sticky;
   top: 1rem;
   align-self: start;
-  max-height: calc(100vh - 2rem);
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  overflow: hidden;
 }
 
 .match-panel::before {
@@ -651,8 +648,6 @@ tbody tr:last-child td {
 
   .match-panel {
     position: static;
-    max-height: none;
-    overflow: visible;
   }
 
   .stats-grid {

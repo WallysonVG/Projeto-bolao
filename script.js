@@ -33,7 +33,6 @@ const ADMIN_PASSWORD = "Wvg569645";
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
-const matchPanel = document.querySelector(".match-panel");
 const searchInput = document.querySelector("#search");
 const statusFilter = document.querySelector("#status-filter");
 const statsGrid = document.querySelector("#stats-grid");
@@ -105,34 +104,6 @@ function renderAdminState() {
     adminPassword.value = "";
   } else {
     adminMessage.textContent = "Entre como adm para confirmar pagamento ou remover.";
-  }
-}
-
-function shouldScrollMatchPanelFirst() {
-  return (
-    window.matchMedia("(min-width: 861px)").matches &&
-    matchPanel &&
-    matchPanel.scrollHeight > matchPanel.clientHeight + 1
-  );
-}
-
-function handleDesktopWheel(event) {
-  if (!shouldScrollMatchPanelFirst()) return;
-
-  const atPageTop = window.scrollY <= 2;
-  const scrollingDown = event.deltaY > 0;
-  const scrollingUp = event.deltaY < 0;
-  const canScrollPanelDown = matchPanel.scrollTop + matchPanel.clientHeight < matchPanel.scrollHeight - 1;
-  const canScrollPanelUp = matchPanel.scrollTop > 0;
-
-  if (atPageTop && scrollingDown && canScrollPanelDown) {
-    matchPanel.scrollTop += event.deltaY;
-    event.preventDefault();
-  }
-
-  if (atPageTop && scrollingUp && canScrollPanelUp) {
-    matchPanel.scrollTop += event.deltaY;
-    event.preventDefault();
   }
 }
 
@@ -385,6 +356,5 @@ if (message) {
 
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
-window.addEventListener("wheel", handleDesktopWheel, { passive: false });
 
 render();
