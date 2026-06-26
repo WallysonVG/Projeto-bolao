@@ -61,13 +61,27 @@
             </label>
           </div>
 
-          <label class="check-row">
+          <label class="check-row admin-only" id="paid-row">
             <input id="paid" name="paid" type="checkbox" checked />
             <span>Pagamento confirmado</span>
           </label>
 
           <button class="primary-button" type="submit">Adicionar palpite</button>
           <p class="form-message" id="form-message" role="status"></p>
+        </form>
+
+        <form class="admin-box" id="admin-form">
+          <label>
+            Acesso adm
+            <div class="admin-login-row">
+              <input id="admin-password" name="password" type="password" autocomplete="current-password" placeholder="Senha" />
+              <button class="small-button" type="submit">Entrar</button>
+            </div>
+          </label>
+          <div class="admin-status-row">
+            <p class="admin-message" id="admin-message" role="status"></p>
+            <button class="small-button remove" id="admin-logout" type="button" hidden>Sair</button>
+          </div>
         </form>
 
         <div class="pix-box" aria-label="Dados do Pix">

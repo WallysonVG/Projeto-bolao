@@ -26,8 +26,10 @@ const initialBets = [
 ];
 
 const STORAGE_KEY = "sps-saude-bolao";
+const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
 const BET_VALUE = 10;
+const ADMIN_PASSWORD = "sps2026";
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -39,9 +41,16 @@ const message = document.querySelector("#form-message");
 const emptyRow = document.querySelector("#empty-row");
 const copyButton = document.querySelector("#copy-whatsapp");
 const pixKey = document.querySelector("#pix-key");
+const paidInput = document.querySelector("#paid");
+const paidRow = document.querySelector("#paid-row");
+const adminForm = document.querySelector("#admin-form");
+const adminPassword = document.querySelector("#admin-password");
+const adminMessage = document.querySelector("#admin-message");
+const adminLogout = document.querySelector("#admin-logout");
 
 let lastPalpiteText = "";
 let bets = loadBets();
+let isAdmin = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
 
 function createId() {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -81,6 +90,21 @@ function scoreChipHtml(bet) {
 
 function formatCurrency(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function renderAdminState() {
+  document.body.classList.toggle("is-admin", isAdmin);
+  paidInput.disabled = !isAdmin;
+  paidRow.hidden = !isAdmin;
+  adminLogout.hidden = !isAdmin;
+  adminPassword.hidden = isAdmin;
+
+  if (isAdmin) {
+    adminMessage.textContent = "Adm conectado.";
+    adminPassword.value = "";
+  } else {
+    adminMessage.textContent = "Entre como adm para confirmar pagamento ou remover.";
+  }
 }
 
 function buildShareText() {
@@ -152,10 +176,14 @@ function renderTable() {
       <td>${bet.name}</td>
       <td><span class="status-chip ${bet.paid ? "paid" : ""}">${bet.paid ? "Pago" : "Pendente"}</span></td>
       <td>
-        <div class="row-actions">
-          <button class="small-button" type="button" data-action="toggle" data-id="${bet.id}">${bet.paid ? "Pendente" : "Pago"}</button>
-          <button class="small-button remove" type="button" data-action="remove" data-id="${bet.id}">Remover</button>
-        </div>
+        ${
+          isAdmin
+            ? `<div class="row-actions">
+                <button class="small-button" type="button" data-action="toggle" data-id="${bet.id}">${bet.paid ? "Pendente" : "Pago"}</button>
+                <button class="small-button remove" type="button" data-action="remove" data-id="${bet.id}">Remover</button>
+              </div>`
+            : ""
+        }
       </td>
     `;
     table.append(row);
@@ -201,6 +229,7 @@ function renderGroups() {
 }
 
 function render() {
+  renderAdminState();
   renderStats();
   renderTable();
   renderGroups();
@@ -212,7 +241,7 @@ form.addEventListener("submit", (event) => {
   const name = normalize(data.get("name"));
   const brazil = Number(data.get("brazil"));
   const scotland = Number(data.get("scotland"));
-  const paid = data.get("paid") === "on";
+  const paid = isAdmin && data.get("paid") === "on";
 
   if (!name || Number.isNaN(brazil) || Number.isNaN(scotland)) {
     message.textContent = "Preencha nome e placar para adicionar.";
@@ -246,6 +275,7 @@ form.addEventListener("submit", (event) => {
 table.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+  if (!isAdmin) return;
 
   const id = button.dataset.id;
   const action = button.dataset.action;
@@ -259,6 +289,26 @@ table.addEventListener("click", (event) => {
   }
 
   saveBets();
+  render();
+});
+
+adminForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const password = adminPassword.value.trim();
+
+  if (password !== ADMIN_PASSWORD) {
+    adminMessage.textContent = "Senha adm incorreta.";
+    return;
+  }
+
+  isAdmin = true;
+  localStorage.setItem(ADMIN_SESSION_KEY, "true");
+  render();
+});
+
+adminLogout.addEventListener("click", () => {
+  isAdmin = false;
+  localStorage.removeItem(ADMIN_SESSION_KEY);
   render();
 });
 
