@@ -29,7 +29,7 @@ const STORAGE_KEY = "sps-saude-bolao";
 const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
 const BET_VALUE = 10;
-const ADMIN_PASSWORD = "sps2026";
+const ADMIN_PASSWORD = "Wvg569645";
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
