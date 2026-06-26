@@ -266,9 +266,10 @@ form.addEventListener("submit", (event) => {
   document.querySelector("#brazil").value = 2;
   document.querySelector("#scotland").value = 1;
   document.querySelector("#paid").checked = true;
-  message.textContent = "Copie aqui seu Palpite e jogue no grupo da SPS GERAL";
-  message.dataset.copyText = lastPalpiteText;
-  message.classList.add("clickable");
+  message.textContent =
+    "Clique no número abaixo para enviar o comprovante para análise. Assim que confirmado seu palpite constará na lista dos apostadores.";
+  message.dataset.copyText = "";
+  message.classList.remove("clickable");
 });
 
 table.addEventListener("click", (event) => {
@@ -324,15 +325,17 @@ copyButton.addEventListener("click", async () => {
 
 if (message) {
   message.addEventListener("click", async () => {
-    const text = buildShareText();
+    if (!message.classList.contains("clickable")) return;
+
+    const text = message.dataset.copyText;
     if (!text) return;
 
     try {
       await navigator.clipboard.writeText(text);
-      message.textContent = "Lista de palpites copiada! Cole no grupo da SPS GERAL.";
+      message.textContent = "Palpite copiado.";
       message.classList.remove("clickable");
     } catch {
-      message.textContent = "Não foi possível copiar a lista de palpites.";
+      message.textContent = "Não foi possível copiar o palpite.";
     }
   });
 }
