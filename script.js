@@ -26,6 +26,7 @@ const initialBets = [
 ];
 
 const STORAGE_KEY = "sps-saude-bolao";
+const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -92,9 +93,9 @@ function buildShareText() {
     .map(([score, items]) => `*Grupo ${score}*\n${items.join("\n")}`)
     .join("\n");
 
-  const pageLink = window.location.href;
+  const pageLink = SITE_LINK;
 
-  return `*Lista de placar bolão SPS Saúde*\n\n${list}\n\nClique aqui para fazer seu Palpite\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvão / Banco Inter*\n\nSe tem Neymar eu acredito!`;
+  return `*Lista de placar bolão SPS Saúde*\n\n${list}\n\nClique aqui para fazer seu Palpite:\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvão / Banco Inter*\n\nSe tem Neymar eu acredito!`;
 }
 
 function filteredBets() {
