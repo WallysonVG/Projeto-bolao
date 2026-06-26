@@ -267,7 +267,7 @@ form.addEventListener("submit", (event) => {
   document.querySelector("#scotland").value = 1;
   document.querySelector("#paid").checked = true;
   message.textContent =
-    "Clique no número abaixo para enviar o comprovante para análise. Assim que confirmado seu palpite constará na lista dos apostadores.";
+    "Clique no número abaixo e envie seu comprovante para análise. Assim que o pagamento for confirmado seu palpite constará na lista de apsotas.";
   message.dataset.copyText = "";
   message.classList.remove("clickable");
 });
