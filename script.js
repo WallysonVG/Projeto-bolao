@@ -40,8 +40,6 @@ const scoreGroups = document.querySelector("#score-groups");
 const message = document.querySelector("#form-message");
 const emptyRow = document.querySelector("#empty-row");
 const copyButton = document.querySelector("#copy-whatsapp");
-const paidInput = document.querySelector("#paid");
-const paidRow = document.querySelector("#paid-row");
 const adminForm = document.querySelector("#admin-form");
 const adminPassword = document.querySelector("#admin-password");
 const adminMessage = document.querySelector("#admin-message");
@@ -93,8 +91,6 @@ function formatCurrency(value) {
 
 function renderAdminState() {
   document.body.classList.toggle("is-admin", isAdmin);
-  paidInput.disabled = !isAdmin;
-  paidRow.hidden = !isAdmin;
   adminLogout.hidden = !isAdmin;
   adminPassword.hidden = isAdmin;
 
@@ -240,7 +236,7 @@ form.addEventListener("submit", (event) => {
   const name = normalize(data.get("name"));
   const brazil = Number(data.get("brazil"));
   const scotland = Number(data.get("scotland"));
-  const paid = isAdmin && data.get("paid") === "on";
+  const paid = false;
 
   if (!name || Number.isNaN(brazil) || Number.isNaN(scotland)) {
     message.textContent = "Preencha nome e placar para adicionar.";
@@ -265,7 +261,6 @@ form.addEventListener("submit", (event) => {
   form.reset();
   document.querySelector("#brazil").value = 2;
   document.querySelector("#scotland").value = 1;
-  document.querySelector("#paid").checked = true;
   message.textContent =
     "Clique no número abaixo e envie seu comprovante para análise. Assim que o pagamento for confirmado seu palpite constará na lista de apsotas.";
   message.dataset.copyText = "";
