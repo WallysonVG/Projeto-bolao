@@ -591,12 +591,12 @@ tbody tr:last-child td {
   flex: 0 0 auto;
 }
 
-.group-count,
-.group-value {
+.group-count {
   color: var(--blue);
 }
 
 .group-value {
+  color: var(--green-dark);
   font-size: 0.78rem;
   white-space: nowrap;
 }
