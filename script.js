@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -45,6 +44,9 @@ const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
 const BET_VALUE = 10;
 const ADMIN_PASSWORD = "Wvg569645";
+const ADMIN_WHATSAPP = "5594992633276";
+const STATUS_PENDING = "pendente";
+const STATUS_PAID = "pago";
 const firebaseConfig = {
   apiKey: "AIzaSyDolWd39yw26GA6k3TFsoO7LU0BlsH-L8k",
   authDomain: "projeto-bolao-3e431.firebaseapp.com",
@@ -67,6 +69,7 @@ const statsGrid = document.querySelector("#stats-grid");
 const scoreGroups = document.querySelector("#score-groups");
 const message = document.querySelector("#form-message");
 const emptyRow = document.querySelector("#empty-row");
+const pixKey = document.querySelector("#pix-key");
 const copyButton = document.querySelector("#copy-whatsapp");
 const adminForm = document.querySelector("#admin-form");
 const adminPassword = document.querySelector("#admin-password");
@@ -79,6 +82,97 @@ let isAdmin = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
 
 function normalize(value) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function createBetCode() {
+  const randomPart =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, "")
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+  return `BOLAO-2026-${randomPart.toUpperCase()}`;
+}
+
+function createUniqueBetCode() {
+  let code = createBetCode();
+
+  while (bets.some((bet) => getBetCode(bet) === code || bet.id === code)) {
+    code = createBetCode();
+  }
+
+  return code;
+}
+
+function getBetCode(bet) {
+  return bet.codigo_aposta || bet.betId || bet.id;
+}
+
+function getBetName(bet) {
+  return bet.nome_usuario || bet.name;
+}
+
+function getBetStatus(bet) {
+  if (bet.status) return bet.status;
+  return bet.paid ? STATUS_PAID : STATUS_PENDING;
+}
+
+function isBetPaid(bet) {
+  return getBetStatus(bet) === STATUS_PAID;
+}
+
+function createPalpite(brazil, scotland) {
+  return `${brazil}x${scotland}`;
+}
+
+function buildBetWhatsappText(bet) {
+  return [
+    "Nova aposta realizada.",
+    `ID da aposta: ${bet.codigo_aposta}`,
+    `Usuario: ${getBetName(bet)}`,
+    `Palpite: ${bet.palpite}`,
+    "Status: PENDENTE",
+    "Aguardando confirmacao do pagamento.",
+  ].join("\n");
+}
+
+function buildBetWhatsappUrl(bet) {
+  return `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(buildBetWhatsappText(bet))}`;
+}
+
+function updatePixWhatsappLink(bet) {
+  if (!pixKey) return;
+
+  pixKey.href = buildBetWhatsappUrl(bet);
+  pixKey.title = "Clique para enviar os dados da aposta no WhatsApp";
+}
+
+function notifyAdmin(bet, targetWindow) {
+  const url = buildBetWhatsappUrl(bet);
+
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.location.href = url;
+    return;
+  }
+
+  window.open(url, "_blank", "noopener");
+}
+
+function buildBetSchemaPatch(bet, docId) {
+  const patch = {};
+  const code = getBetCode({ id: docId, ...bet });
+  const name = getBetName(bet);
+  const palpite = bet.palpite || createPalpite(bet.brazil, bet.scotland);
+  const status = getBetStatus(bet);
+
+  if (!("id" in bet)) patch.id = code;
+  if (!bet.codigo_aposta) patch.codigo_aposta = code;
+  if (!bet.nome_usuario) patch.nome_usuario = name;
+  if (!bet.palpite) patch.palpite = palpite;
+  if (!bet.status) patch.status = status;
+  if (!bet.data_criacao) patch.data_criacao = bet.createdAt || null;
+  if (!("data_validacao" in bet)) patch.data_validacao = isBetPaid(bet) ? bet.createdAt || null : null;
+
+  return patch;
 }
 
 function scoreLabel(bet) {
@@ -113,7 +207,7 @@ function buildShareText() {
     .reduce((acc, bet) => {
       const key = `${bet.brazil}x${bet.scotland}`;
       if (!acc[key]) acc[key] = [];
-      acc[key].push(`${scoreLabel(bet)} - ${bet.name}${bet.paid ? " 💰" : " ⏳"}`);
+      acc[key].push(`${scoreLabel(bet)} - ${getBetName(bet)}${isBetPaid(bet) ? " 💰" : " ⏳"}`);
       return acc;
     }, {});
 
@@ -132,8 +226,8 @@ function filteredBets() {
 
   return bets
     .filter((bet) => {
-      const text = `${bet.name} ${bet.brazil}x${bet.scotland}`.toLowerCase();
-      const statusMatches = status === "all" || (status === "paid" ? bet.paid : !bet.paid);
+      const text = `${getBetCode(bet)} ${getBetName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
+      const statusMatches = status === "all" || (status === "paid" ? isBetPaid(bet) : !isBetPaid(bet));
       return statusMatches && text.includes(term);
     })
     .sort((a, b) => a.brazil - b.brazil || a.scotland - b.scotland);
@@ -141,7 +235,7 @@ function filteredBets() {
 
 function renderStats() {
   const total = bets.length;
-  const paid = bets.filter((bet) => bet.paid).length;
+  const paid = bets.filter(isBetPaid).length;
   const pending = total - paid;
   const totalValue = paid * BET_VALUE;
   const uniqueScores = new Set(bets.map((bet) => `${bet.brazil}x${bet.scotland}`)).size;
@@ -170,15 +264,17 @@ function renderTable() {
 
   items.forEach((bet) => {
     const row = document.createElement("tr");
+    const paid = isBetPaid(bet);
     row.innerHTML = `
+      <td>${getBetCode(bet)}</td>
       <td><span class="score-chip">${scoreChipHtml(bet)}</span></td>
-      <td>${bet.name}</td>
-      <td><span class="status-chip ${bet.paid ? "paid" : ""}">${bet.paid ? "Pago" : "Pendente"}</span></td>
+      <td>${getBetName(bet)}</td>
+      <td><span class="status-chip ${paid ? "paid" : ""}">${paid ? "Pago" : "Pendente"}</span></td>
       <td>
         ${
           isAdmin
             ? `<div class="row-actions">
-                <button class="small-button" type="button" data-action="toggle" data-id="${bet.id}">${bet.paid ? "Pendente" : "Pago"}</button>
+                <button class="small-button" type="button" data-action="toggle" data-id="${bet.id}">${paid ? "Pendente" : "Pago"}</button>
                 <button class="small-button remove" type="button" data-action="remove" data-id="${bet.id}">Remover</button>
               </div>`
             : ""
@@ -190,11 +286,11 @@ function renderTable() {
 }
 
 function renderGroups() {
-  const totalPrize = bets.filter((bet) => bet.paid).length * BET_VALUE;
+  const totalPrize = bets.filter(isBetPaid).length * BET_VALUE;
   const groups = bets.reduce((acc, bet) => {
     const key = `${bet.brazil}x${bet.scotland}`;
     acc[key] ||= [];
-    acc[key].push(bet.name);
+    acc[key].push(getBetName(bet));
     return acc;
   }, {});
 
@@ -241,6 +337,13 @@ async function seedInitialBetsIfEmpty() {
   await Promise.all(
     initialBets.map((bet, index) =>
       setDoc(doc(betsCollection, bet.id), {
+        id: bet.id,
+        codigo_aposta: bet.id,
+        nome_usuario: bet.name,
+        palpite: createPalpite(bet.brazil, bet.scotland),
+        status: bet.paid ? STATUS_PAID : STATUS_PENDING,
+        data_criacao: new Date(2026, 0, index + 1),
+        data_validacao: bet.paid ? new Date(2026, 0, index + 1) : null,
         brazil: bet.brazil,
         scotland: bet.scotland,
         name: bet.name,
@@ -256,6 +359,12 @@ function listenToBets() {
     betsQuery,
     (snapshot) => {
       bets = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      snapshot.docs.forEach((item) => {
+        const patch = buildBetSchemaPatch(item.data(), item.id);
+        if (Object.keys(patch).length) {
+          updateDoc(doc(betsCollection, item.id), patch).catch(console.error);
+        }
+      });
       render();
     },
     (error) => {
@@ -278,29 +387,44 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const duplicate = bets.some(
-    (bet) => bet.name.toLowerCase() === name.toLowerCase() && bet.brazil === brazil && bet.scotland === scotland,
-  );
-
-  if (duplicate) {
-    message.textContent = "Esse nome já tem esse mesmo placar cadastrado.";
-    message.dataset.copyText = "";
-    message.classList.remove("clickable");
-    return;
-  }
-
   lastPalpiteText = `${scoreLabel({ brazil, scotland })} - ${name}`;
 
+  let adminNotificationWindow = null;
+
   try {
-    await addDoc(betsCollection, { name, brazil, scotland, paid, createdAt: serverTimestamp() });
+    const code = createUniqueBetCode();
+    const palpite = createPalpite(brazil, scotland);
+    adminNotificationWindow = window.open("", "_blank");
+    const newBet = {
+      id: code,
+      codigo_aposta: code,
+      nome_usuario: name,
+      palpite,
+      status: STATUS_PENDING,
+      data_criacao: serverTimestamp(),
+      data_validacao: null,
+      betId: code,
+      name,
+      brazil,
+      scotland,
+      paid,
+      createdAt: serverTimestamp(),
+    };
+
+    await setDoc(doc(betsCollection, code), newBet);
+    updatePixWhatsappLink(newBet);
+    notifyAdmin({ ...newBet, data_criacao: new Date() }, adminNotificationWindow);
     form.reset();
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
     message.textContent =
-      "Clique no número abaixo e envie seu comprovante para análise. Assim que o pagamento for confirmado seu palpite constará na lista de apsotas.";
+      "Seu palpite foi salvo como pendente. O WhatsApp foi aberto com ID, nome e palpite para envio do comprovante.";
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
+    if (adminNotificationWindow && !adminNotificationWindow.closed) {
+      adminNotificationWindow.close();
+    }
     console.error(error);
     message.textContent = "Não foi possível salvar seu palpite. Tente novamente.";
   }
@@ -318,7 +442,12 @@ table.addEventListener("click", async (event) => {
 
   try {
     if (action === "toggle") {
-      await updateDoc(doc(betsCollection, id), { paid: !currentBet.paid });
+      const nextPaid = !isBetPaid(currentBet);
+      await updateDoc(doc(betsCollection, id), {
+        paid: nextPaid,
+        status: nextPaid ? STATUS_PAID : STATUS_PENDING,
+        data_validacao: nextPaid ? serverTimestamp() : null,
+      });
     }
 
     if (action === "remove") {
