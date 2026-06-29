@@ -138,7 +138,7 @@ select {
   padding: 0.4rem 0.8rem;
   background: #138057;
   border-radius: 14px;
-  color: #fff;
+  color: #083a63;
   font-size: 0.9rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -151,7 +151,7 @@ select {
   font-weight: 900;
   letter-spacing: -0.08em;
   text-transform: uppercase;
-  color: #fff;
+  color: #083a63;
 }
 
 .description {
