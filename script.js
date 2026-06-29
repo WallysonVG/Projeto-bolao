@@ -32,6 +32,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const betsCollection = collection(db, "bets");
+const playersCollection = collection(db, "players");
 const betsQuery = query(betsCollection, orderBy("createdAt", "desc"));
 const betCounterDoc = doc(db, "settings", "betCounter");
 
@@ -53,6 +54,7 @@ const adminLogout = document.querySelector("#admin-logout");
 
 let lastPalpiteText = "";
 let bets = [];
+let players = [];
 let isAdmin = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
 
 function normalize(value) {
@@ -136,10 +138,12 @@ function buildBetSchemaPatch(bet, docId) {
   const name = getBetName(bet);
   const palpite = bet.palpite || createPalpite(bet.brazil, bet.scotland);
   const status = getBetStatus(bet);
+  const playerId = bet.playerId || playerIdFromName(name);
 
   if (!("id" in bet)) patch.id = code;
   if (!bet.codigo_aposta) patch.codigo_aposta = code;
   if (!bet.nome_usuario) patch.nome_usuario = name;
+  if (!bet.playerId) patch.playerId = playerId;
   if (!bet.palpite) patch.palpite = palpite;
   if (!bet.status) patch.status = status;
   if (!bet.data_criacao) patch.data_criacao = bet.createdAt || null;
@@ -148,8 +152,25 @@ function buildBetSchemaPatch(bet, docId) {
   return patch;
 }
 
+function playerIdFromName(name) {
+  const slug = normalize(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `player-${slug || "sem-nome"}`;
+}
+
+function playerKeyFromName(name) {
+  return playerIdFromName(name).replace(/^player-/, "");
+}
+
 function scoreLabel(bet) {
-  return `🇧🇷${bet.brazil}x${bet.scotland}🇯🇵`;
+  const brazilFlag = String.fromCodePoint(0x1f1e7, 0x1f1f7);
+  const japanFlag = String.fromCodePoint(0x1f1ef, 0x1f1f5);
+  return `${brazilFlag}${bet.brazil}x${bet.scotland}${japanFlag}`;
 }
 
 function scoreChipHtml(bet) {
@@ -158,6 +179,32 @@ function scoreChipHtml(bet) {
 
 function formatCurrency(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function playerNameById(playerId) {
+  return players.find((player) => player.id === playerId)?.name || "";
+}
+
+function betPlayerName(bet) {
+  return playerNameById(bet.playerId) || getBetName(bet) || "";
+}
+
+async function ensurePlayer(name) {
+  const playerName = normalize(name);
+  const playerId = playerIdFromName(playerName);
+  const nameKey = playerKeyFromName(playerName);
+
+  await setDoc(
+    doc(playersCollection, playerId),
+    {
+      name: playerName,
+      nameKey,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return { id: playerId, name: playerName, nameKey };
 }
 
 function renderAdminState() {
@@ -175,13 +222,16 @@ function renderAdminState() {
 }
 
 function buildShareText() {
+  const paidIcon = String.fromCodePoint(0x1f4b0);
+  const pendingIcon = String.fromCodePoint(0x23f3);
+  const downIcon = String.fromCodePoint(0x1f447);
   const grouped = bets
     .slice()
     .sort((a, b) => a.brazil - b.brazil || a.scotland - b.scotland)
     .reduce((acc, bet) => {
       const key = `${bet.brazil}x${bet.scotland}`;
       if (!acc[key]) acc[key] = [];
-      acc[key].push(`${scoreLabel(bet)} - ${getBetName(bet)}${isBetPaid(bet) ? " 💰" : " ⏳"}`);
+      acc[key].push(`${scoreLabel(bet)} - ${betPlayerName(bet)} ${isBetPaid(bet) ? paidIcon : pendingIcon}`);
       return acc;
     }, {});
 
@@ -191,7 +241,7 @@ function buildShareText() {
 
   const pageLink = SITE_LINK;
 
-  return `*Lista de placar bolão SPS Saúde*\n\n${list}\n\nClique aqui para fazer seu Palpite 👇\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvão / Banco Inter*\n\nSe tem Neymar eu acredito!`;
+  return `*Lista de placar bolão SPS Saúde*\n\n${list}\n\nClique aqui para fazer seu Palpite ${downIcon}\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvão / Banco Inter*\n\nSe tem Neymar eu acredito!`;
 }
 
 function filteredBets() {
@@ -202,22 +252,23 @@ function filteredBets() {
     .filter((bet) => {
       const code = getBetCode(bet);
       const numericCode = String(Number(code));
-      const text = `${code} ${numericCode} id ${code} id ${numericCode} ${getBetName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
+      const text = `${code} ${numericCode} id ${code} id ${numericCode} ${betPlayerName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
       const statusMatches = status === "all" || (status === "paid" ? isBetPaid(bet) : !isBetPaid(bet));
       return statusMatches && text.includes(term);
     })
     .sort((a, b) => a.brazil - b.brazil || a.scotland - b.scotland);
 }
-
 function renderStats() {
   const total = bets.length;
   const paid = bets.filter(isBetPaid).length;
   const pending = total - paid;
   const totalValue = paid * BET_VALUE;
   const uniqueScores = new Set(bets.map((bet) => `${bet.brazil}x${bet.scotland}`)).size;
+  const uniquePlayers = new Set(bets.map((bet) => bet.playerId || playerIdFromName(getBetName(bet) || ""))).size;
 
   const stats = [
     ["Palpites", total],
+    ["Apostadores", uniquePlayers],
     ["Pagos", paid],
     ["Pendentes", pending],
     ["Arrecadado", formatCurrency(totalValue)],
@@ -244,7 +295,7 @@ function renderTable() {
     row.innerHTML = `
       <td>${getBetCode(bet)}</td>
       <td><span class="score-chip">${scoreChipHtml(bet)}</span></td>
-      <td>${getBetName(bet)}</td>
+      <td>${betPlayerName(bet)}</td>
       <td><span class="status-chip ${paid ? "paid" : ""}">${paid ? "Pago" : "Pendente"}</span></td>
       <td>
         ${
@@ -260,13 +311,12 @@ function renderTable() {
     table.append(row);
   });
 }
-
 function renderGroups() {
   const totalPrize = bets.filter(isBetPaid).length * BET_VALUE;
   const groups = bets.reduce((acc, bet) => {
     const key = `${bet.brazil}x${bet.scotland}`;
     acc[key] ||= [];
-    acc[key].push(getBetName(bet));
+    acc[key].push(betPlayerName(bet));
     return acc;
   }, {});
 
@@ -312,7 +362,12 @@ function listenToBets() {
     (snapshot) => {
       bets = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
       snapshot.docs.forEach((item) => {
-        const patch = buildBetSchemaPatch(item.data(), item.id);
+        const bet = item.data();
+        const patch = buildBetSchemaPatch(bet, item.id);
+        const name = getBetName(bet);
+        if (name) {
+          ensurePlayer(name).catch(console.error);
+        }
         if (Object.keys(patch).length) {
           updateDoc(doc(betsCollection, item.id), patch).catch(console.error);
         }
@@ -322,6 +377,19 @@ function listenToBets() {
     (error) => {
       console.error(error);
       message.textContent = "Não foi possível carregar os palpites online.";
+    },
+  );
+}
+
+function listenToPlayers() {
+  onSnapshot(
+    playersCollection,
+    (snapshot) => {
+      players = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      render();
+    },
+    (error) => {
+      console.error(error);
     },
   );
 }
@@ -339,25 +407,40 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const playerId = playerIdFromName(name);
+  const duplicate = bets.some(
+    (bet) => (bet.playerId || playerIdFromName(getBetName(bet) || "")) === playerId && bet.brazil === brazil && bet.scotland === scotland,
+  );
+
+  if (duplicate) {
+    message.textContent = "Esse nome já tem esse mesmo placar cadastrado.";
+    message.dataset.copyText = "";
+    message.classList.remove("clickable");
+    return;
+  }
+
   lastPalpiteText = `${scoreLabel({ brazil, scotland })} - ${name}`;
 
   try {
+    const player = await ensurePlayer(name);
     const code = await createUniqueBetCode();
     const palpite = createPalpite(brazil, scotland);
+    const createdAt = serverTimestamp();
     const newBet = {
       id: code,
       codigo_aposta: code,
-      nome_usuario: name,
+      playerId: player.id,
+      nome_usuario: player.name,
       palpite,
       status: STATUS_PENDING,
-      data_criacao: serverTimestamp(),
+      data_criacao: createdAt,
       data_validacao: null,
       betId: code,
-      name,
+      name: player.name,
       brazil,
       scotland,
       paid,
-      createdAt: serverTimestamp(),
+      createdAt,
     };
 
     await setDoc(doc(betsCollection, code), newBet);
@@ -476,4 +559,5 @@ statusFilter.addEventListener("change", render);
 
 render();
 
+listenToPlayers();
 listenToBets();
