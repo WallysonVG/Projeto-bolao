@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -60,6 +61,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const betsCollection = collection(db, "bets");
 const betsQuery = query(betsCollection, orderBy("createdAt", "desc"));
+const betCounterDoc = doc(db, "settings", "betCounter");
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -84,23 +86,29 @@ function normalize(value) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-function createBetCode() {
-  const randomPart =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID().replace(/-/g, "")
-      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-
-  return `BOLAO-2026-${randomPart.toUpperCase()}`;
+function formatBetCode(value) {
+  return String(value).padStart(4, "0");
 }
 
-function createUniqueBetCode() {
-  let code = createBetCode();
+async function createUniqueBetCode() {
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(betCounterDoc);
+    let nextValue = (snapshot.exists() ? Number(snapshot.data().lastCode) || 0 : 0) + 1;
+    let code = formatBetCode(nextValue);
+    let codeDoc = doc(betsCollection, code);
+    let codeSnapshot = await transaction.get(codeDoc);
 
-  while (bets.some((bet) => getBetCode(bet) === code || bet.id === code)) {
-    code = createBetCode();
-  }
+    while (codeSnapshot.exists()) {
+      nextValue += 1;
+      code = formatBetCode(nextValue);
+      codeDoc = doc(betsCollection, code);
+      codeSnapshot = await transaction.get(codeDoc);
+    }
 
-  return code;
+    transaction.set(betCounterDoc, { lastCode: nextValue, updatedAt: serverTimestamp() }, { merge: true });
+
+    return code;
+  });
 }
 
 function getBetCode(bet) {
@@ -392,7 +400,7 @@ form.addEventListener("submit", async (event) => {
   let adminNotificationWindow = null;
 
   try {
-    const code = createUniqueBetCode();
+    const code = await createUniqueBetCode();
     const palpite = createPalpite(brazil, scotland);
     adminNotificationWindow = window.open("", "_blank");
     const newBet = {
