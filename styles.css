@@ -474,6 +474,16 @@ select:focus {
   color: var(--red);
 }
 
+.copy-list-button {
+  min-height: 2.6rem;
+  width: auto;
+  padding-inline: 1rem;
+  background: #eef6f2;
+  color: var(--green-dark);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .stats-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 1rem;
