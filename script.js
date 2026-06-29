@@ -115,11 +115,20 @@ function buildBetWhatsappText(bet) {
   const brazilFlag = String.fromCodePoint(0x1f1e7, 0x1f1f7);
   const japanFlag = String.fromCodePoint(0x1f1ef, 0x1f1f5);
   const playerName = betPlayerName(bet);
+  const playerId = getBetPlayerId(bet);
+  const playerBets = bets.filter((item) => getBetPlayerId(item) === playerId);
+  const allPlayerBets = playerBets.some((item) => item.id === bet.id) ? playerBets : [...playerBets, bet];
+  const guesses = allPlayerBets
+    .slice()
+    .sort((a, b) => a.brazil - b.brazil || a.scotland - b.scotland)
+    .map((item, index) => `${index + 1}. ${brazilFlag} ${item.palpite || createPalpite(item.brazil, item.scotland)} ${japanFlag}`)
+    .join("\n");
 
   return [
     `Olá, Eu sou ${playerName}`,
-    `*ID: ${getBetPlayerId(bet)}*`,
-    `*Palpite: ${brazilFlag} ${bet.palpite} ${japanFlag}*`,
+    `*ID: ${playerId}*`,
+    "*Minhas apostas:*",
+    guesses,
     "Vou te encaminhar o comprovante de pagamento para validação.",
   ]
     .map((line, index) => (index === 0 ? line.replace(playerName, `*${playerName}*`) : line))
