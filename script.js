@@ -56,6 +56,7 @@ const adminLogout = document.querySelector("#admin-logout");
 let lastPalpiteText = "";
 let bets = [];
 let players = [];
+const migratedPlayerNames = new Set();
 let isAdmin = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
 
 function normalize(value) {
@@ -155,11 +156,11 @@ function buildBetWhatsappText(bet) {
     .join("\n");
 
   return [
-    `Olá, Eu sou ${playerName}`,
+    `Ola, Eu sou ${playerName}`,
     `*ID: ${playerId}*`,
     "*Minhas apostas:*",
     guesses,
-    "Vou te encaminhar o comprovante de pagamento para validação.",
+    "Vou te encaminhar o comprovante de pagamento para validacao.",
   ]
     .map((line, index) => (index === 0 ? line.replace(playerName, `*${playerName}*`) : line))
     .join("\n");
@@ -237,6 +238,25 @@ async function ensurePlayer(name) {
   const nameKey = playerKeyFromName(playerName);
   const existingPlayer = players.find((player) => player.nameKey === nameKey);
   const existingBet = bets.find((bet) => playerKeyFromName(getBetName(bet) || "") === nameKey && isNumericPlayerId(bet.playerId));
+
+  if (existingBet?.playerId || (existingPlayer && isNumericPlayerId(existingPlayer.id))) {
+    const playerId = existingBet?.playerId || existingPlayer.id;
+    const player = { id: playerId, name: playerName, nameKey };
+
+    players = [...players.filter((item) => item.nameKey !== nameKey), player];
+    setDoc(
+      doc(playersCollection, playerId),
+      {
+        name: playerName,
+        nameKey,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    ).catch(console.error);
+
+    return player;
+  }
+
   const playerId =
     existingBet?.playerId || (existingPlayer && isNumericPlayerId(existingPlayer.id) ? existingPlayer.id : await createUniquePlayerId());
 
@@ -274,7 +294,7 @@ async function ensurePlayer(name) {
 async function updatePlayerName(currentBet, nextName) {
   const playerName = normalize(nextName);
   if (!playerName) {
-    throw new Error("Nome inválido.");
+    throw new Error("Nome invalido.");
   }
 
   const currentPlayerId = getBetPlayerId(currentBet);
@@ -283,7 +303,7 @@ async function updatePlayerName(currentBet, nextName) {
   const nextPlayerId = isNumericPlayerId(currentPlayerId) ? currentPlayerId : await createUniquePlayerId();
 
   if (duplicatedPlayer) {
-    throw new Error("Já existe um apostador com esse nome.");
+    throw new Error("Ja existe um apostador com esse nome.");
   }
 
   await setDoc(
@@ -346,7 +366,7 @@ function buildShareText() {
 
   const pageLink = SITE_LINK;
 
-  return `*Lista de placar bolão SPS Saúde*\n\n${list}\n\nClique aqui para fazer seu Palpite ${downIcon}\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvão / Banco Inter*\n\nSe tem Neymar eu acredito!`;
+  return `*Lista de placar bolao SPS Saude*\n\n${list}\n\nClique aqui para fazer seu Palpite ${downIcon}\n${pageLink}\n\n*R$ 10,00 Chave Pix: 94992633276*\n\n*Walison Vieira Galvao / Banco Inter*\n\nSe tem Neymar eu acredito!`;
 }
 
 function filteredBets() {
@@ -379,7 +399,7 @@ function renderStats() {
     ["Pagos", paid],
     ["Pendentes", pending],
     ["Arrecadado", formatCurrency(totalValue)],
-    ["Placares únicos", uniqueScores],
+    ["Placares unicos", uniqueScores],
   ];
 
   statsGrid.innerHTML = stats
@@ -477,20 +497,19 @@ function listenToBets() {
           updateDoc(doc(betsCollection, item.id), patch).catch(console.error);
         }
       });
-      const migratedNames = new Set();
       snapshot.docs.forEach((item) => {
         const name = getBetName(item.data());
         const nameKey = playerKeyFromName(name || "");
-        if (!name || migratedNames.has(nameKey)) return;
+        if (!name || migratedPlayerNames.has(nameKey)) return;
 
-        migratedNames.add(nameKey);
+        migratedPlayerNames.add(nameKey);
         ensurePlayer(name).catch(console.error);
       });
       render();
     },
     (error) => {
       console.error(error);
-      message.textContent = "Não foi possível carregar os palpites online.";
+      message.textContent = "Nao foi possivel carregar os palpites online.";
     },
   );
 }
@@ -527,17 +546,17 @@ form.addEventListener("submit", async (event) => {
   );
 
   if (duplicate) {
-    message.textContent = "Esse nome já tem esse mesmo placar cadastrado.";
+    message.textContent = "Esse nome ja tem esse mesmo placar cadastrado.";
     message.dataset.copyText = "";
     message.classList.remove("clickable");
     return;
   }
 
   lastPalpiteText = `${scoreLabel({ brazil, scotland })} - ${name}`;
+  let optimisticBetId = "";
 
   try {
-    const player = await ensurePlayer(name);
-    const code = await createUniqueBetCode();
+    const [player, code] = await Promise.all([ensurePlayer(name), createUniqueBetCode()]);
     const palpite = createPalpite(brazil, scotland);
     const createdAt = serverTimestamp();
     const newBet = {
@@ -557,17 +576,25 @@ form.addEventListener("submit", async (event) => {
       createdAt,
     };
 
+    optimisticBetId = code;
+    bets = [{ ...newBet, createdAt: new Date() }, ...bets.filter((bet) => bet.id !== code)];
+    render();
+
     await setDoc(doc(betsCollection, code), newBet);
     updatePixWhatsappLink(newBet);
     form.reset();
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
-    message.textContent = `Seu palpite está salvo como pendente. Seu ID é ${player.id}. Clique no número abaixo e envie o comprovante de pagamento para validação.`;
+    message.textContent = `Seu palpite esta salvo como pendente. Seu ID e ${player.id}. Clique no numero abaixo e envie o comprovante de pagamento para validacao.`;
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
     console.error(error);
-    message.textContent = "Não foi possível salvar seu palpite. Tente novamente.";
+    if (optimisticBetId) {
+      bets = bets.filter((bet) => bet.id !== optimisticBetId);
+      render();
+    }
+    message.textContent = "Nao foi possivel salvar seu palpite. Tente novamente.";
   }
 });
 
@@ -604,14 +631,14 @@ table.addEventListener("click", async (event) => {
     }
   } catch (error) {
     console.error(error);
-    message.textContent = error.message || "Não foi possível atualizar esse palpite.";
+    message.textContent = error.message || "Nao foi possivel atualizar esse palpite.";
   }
 });
 
 adminReset.addEventListener("click", async () => {
   if (!isAdmin) return;
 
-  const confirmed = confirm("Tem certeza que deseja resetar todos os palpites? Essa ação não pode ser desfeita.");
+  const confirmed = confirm("Tem certeza que deseja resetar todos os palpites? Essa acao nao pode ser desfeita.");
   if (!confirmed) return;
 
   try {
@@ -621,7 +648,7 @@ adminReset.addEventListener("click", async () => {
     adminMessage.textContent = "Palpites resetados.";
   } catch (error) {
     console.error(error);
-    adminMessage.textContent = "Não foi possível resetar os palpites.";
+    adminMessage.textContent = "Nao foi possivel resetar os palpites.";
   } finally {
     adminReset.disabled = false;
   }
@@ -654,7 +681,7 @@ copyButton.addEventListener("click", async () => {
     await navigator.clipboard.writeText(text);
     message.textContent = "Lista copiada para o WhatsApp.";
   } catch {
-    message.textContent = "Não foi possível copiar automaticamente.";
+    message.textContent = "Nao foi possivel copiar automaticamente.";
   }
 });
 
@@ -670,7 +697,7 @@ if (message) {
       message.textContent = "Palpite copiado.";
       message.classList.remove("clickable");
     } catch {
-      message.textContent = "Não foi possível copiar o palpite.";
+      message.textContent = "Nao foi possivel copiar o palpite.";
     }
   });
 }
