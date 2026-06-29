@@ -364,7 +364,7 @@ form.addEventListener("submit", async (event) => {
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
     message.textContent =
-      "Seu palpite foi salvo como pendente. Clique no nÃºmero Pix para enviar o comprovante pelo WhatsApp.";
+      "Seu palpite está salvo como pendente. Clique No número abaixo e envie o comprovante de pagamento para validação!";
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
