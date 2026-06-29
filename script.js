@@ -120,7 +120,7 @@ function buildBetWhatsappText(bet) {
 }
 
 function buildBetWhatsappUrl(bet) {
-  return `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(buildBetWhatsappText(bet))}`;
+  return `https://api.whatsapp.com/send?phone=${ADMIN_WHATSAPP}&text=${encodeURIComponent(buildBetWhatsappText(bet))}`;
 }
 
 function updatePixWhatsappLink(bet) {
