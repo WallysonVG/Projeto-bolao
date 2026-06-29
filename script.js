@@ -35,6 +35,7 @@ const betsCollection = collection(db, "bets");
 const playersCollection = collection(db, "players");
 const betsQuery = query(betsCollection, orderBy("createdAt", "desc"));
 const betCounterDoc = doc(db, "settings", "betCounter");
+const playerCounterDoc = doc(db, "settings", "playerCounter");
 
 const form = document.querySelector("#bet-form");
 const table = document.querySelector("#bets-table");
@@ -65,6 +66,14 @@ function formatBetCode(value) {
   return String(value).padStart(4, "0");
 }
 
+function formatPlayerCode(value) {
+  return String(value).padStart(4, "0");
+}
+
+function isNumericPlayerId(value) {
+  return /^\d+$/.test(String(value || ""));
+}
+
 async function createUniqueBetCode() {
   return runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(betCounterDoc);
@@ -86,6 +95,27 @@ async function createUniqueBetCode() {
   });
 }
 
+async function createUniquePlayerId() {
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(playerCounterDoc);
+    let nextValue = (snapshot.exists() ? Number(snapshot.data().lastCode) || 0 : 0) + 1;
+    let playerId = formatPlayerCode(nextValue);
+    let playerDoc = doc(playersCollection, playerId);
+    let playerSnapshot = await transaction.get(playerDoc);
+
+    while (playerSnapshot.exists()) {
+      nextValue += 1;
+      playerId = formatPlayerCode(nextValue);
+      playerDoc = doc(playersCollection, playerId);
+      playerSnapshot = await transaction.get(playerDoc);
+    }
+
+    transaction.set(playerCounterDoc, { lastCode: nextValue, updatedAt: serverTimestamp() }, { merge: true });
+
+    return playerId;
+  });
+}
+
 function getBetCode(bet) {
   return bet.codigo_aposta || bet.betId || bet.id;
 }
@@ -95,7 +125,7 @@ function getBetName(bet) {
 }
 
 function getBetPlayerId(bet) {
-  return bet.playerId || playerIdFromName(getBetName(bet) || "");
+  return bet.playerId || playerIdByName(getBetName(bet) || "");
 }
 
 function getBetStatus(bet) {
@@ -157,7 +187,7 @@ function buildBetSchemaPatch(bet, docId) {
   if (!("id" in bet)) patch.id = code;
   if (!bet.codigo_aposta) patch.codigo_aposta = code;
   if (!bet.nome_usuario) patch.nome_usuario = name;
-  if (!bet.playerId) patch.playerId = playerId;
+  if (!bet.playerId && isNumericPlayerId(playerId)) patch.playerId = playerId;
   if (!bet.palpite) patch.palpite = palpite;
   if (!bet.status) patch.status = status;
   if (!bet.data_criacao) patch.data_criacao = bet.createdAt || null;
@@ -166,19 +196,18 @@ function buildBetSchemaPatch(bet, docId) {
   return patch;
 }
 
-function playerIdFromName(name) {
-  const slug = normalize(name)
+function playerKeyFromName(name) {
+  return normalize(name)
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
-  return `player-${slug || "sem-nome"}`;
 }
 
-function playerKeyFromName(name) {
-  return playerIdFromName(name).replace(/^player-/, "");
+function playerIdByName(name) {
+  const nameKey = playerKeyFromName(name);
+  return players.find((player) => player.nameKey === nameKey)?.id || nameKey || "sem-nome";
 }
 
 function scoreLabel(bet) {
@@ -205,8 +234,11 @@ function betPlayerName(bet) {
 
 async function ensurePlayer(name) {
   const playerName = normalize(name);
-  const playerId = playerIdFromName(playerName);
   const nameKey = playerKeyFromName(playerName);
+  const existingPlayer = players.find((player) => player.nameKey === nameKey);
+  const existingBet = bets.find((bet) => playerKeyFromName(getBetName(bet) || "") === nameKey && isNumericPlayerId(bet.playerId));
+  const playerId =
+    existingBet?.playerId || (existingPlayer && isNumericPlayerId(existingPlayer.id) ? existingPlayer.id : await createUniquePlayerId());
 
   await setDoc(
     doc(playersCollection, playerId),
@@ -218,6 +250,24 @@ async function ensurePlayer(name) {
     { merge: true },
   );
 
+  players = [...players.filter((player) => player.nameKey !== nameKey), { id: playerId, name: playerName, nameKey }];
+
+  if (existingPlayer && existingPlayer.id !== playerId) {
+    const affectedBets = bets.filter((bet) => getBetPlayerId(bet) === existingPlayer.id || playerKeyFromName(getBetName(bet) || "") === nameKey);
+
+    await Promise.all(
+      affectedBets.map((bet) =>
+        updateDoc(doc(betsCollection, bet.id), {
+          playerId,
+          nome_usuario: playerName,
+          name: playerName,
+        }),
+      ),
+    );
+
+    await deleteDoc(doc(playersCollection, existingPlayer.id));
+  }
+
   return { id: playerId, name: playerName, nameKey };
 }
 
@@ -228,9 +278,9 @@ async function updatePlayerName(currentBet, nextName) {
   }
 
   const currentPlayerId = getBetPlayerId(currentBet);
-  const nextPlayerId = playerIdFromName(playerName);
   const nextNameKey = playerKeyFromName(playerName);
   const duplicatedPlayer = players.find((player) => player.id !== currentPlayerId && player.nameKey === nextNameKey);
+  const nextPlayerId = isNumericPlayerId(currentPlayerId) ? currentPlayerId : await createUniquePlayerId();
 
   if (duplicatedPlayer) {
     throw new Error("Já existe um apostador com esse nome.");
@@ -257,7 +307,7 @@ async function updatePlayerName(currentBet, nextName) {
     ),
   );
 
-  if (currentPlayerId !== nextPlayerId) {
+  if (currentPlayerId !== nextPlayerId && currentPlayerId) {
     await deleteDoc(doc(playersCollection, currentPlayerId));
   }
 }
@@ -321,7 +371,7 @@ function renderStats() {
   const pending = total - paid;
   const totalValue = paid * BET_VALUE;
   const uniqueScores = new Set(bets.map((bet) => `${bet.brazil}x${bet.scotland}`)).size;
-  const uniquePlayers = new Set(bets.map((bet) => bet.playerId || playerIdFromName(getBetName(bet) || ""))).size;
+  const uniquePlayers = new Set(bets.map((bet) => getBetPlayerId(bet))).size;
 
   const stats = [
     ["Palpites", total],
@@ -423,12 +473,18 @@ function listenToBets() {
         const bet = item.data();
         const patch = buildBetSchemaPatch(bet, item.id);
         const name = getBetName(bet);
-        if (name) {
-          ensurePlayer(name).catch(console.error);
-        }
         if (Object.keys(patch).length) {
           updateDoc(doc(betsCollection, item.id), patch).catch(console.error);
         }
+      });
+      const migratedNames = new Set();
+      snapshot.docs.forEach((item) => {
+        const name = getBetName(item.data());
+        const nameKey = playerKeyFromName(name || "");
+        if (!name || migratedNames.has(nameKey)) return;
+
+        migratedNames.add(nameKey);
+        ensurePlayer(name).catch(console.error);
       });
       render();
     },
@@ -465,9 +521,9 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const playerId = playerIdFromName(name);
+  const playerNameKey = playerKeyFromName(name);
   const duplicate = bets.some(
-    (bet) => (bet.playerId || playerIdFromName(getBetName(bet) || "")) === playerId && bet.brazil === brazil && bet.scotland === scotland,
+    (bet) => playerKeyFromName(getBetName(bet) || "") === playerNameKey && bet.brazil === brazil && bet.scotland === scotland,
   );
 
   if (duplicate) {
