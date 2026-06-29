@@ -364,7 +364,7 @@ form.addEventListener("submit", async (event) => {
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
     message.textContent =
-      "Seu palpite está salvo como pendente. Clique No número abaixo e envie o comprovante de pagamento para validação!";
+      "Seu palpite est\u00e1 salvo como pendente. Clique No n\u00famero abaixo e envie o comprovante de pagamento para valida\u00e7\u00e3o!";
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
