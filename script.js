@@ -94,6 +94,10 @@ function getBetName(bet) {
   return bet.nome_usuario || bet.name;
 }
 
+function getBetPlayerId(bet) {
+  return bet.playerId || playerIdFromName(getBetName(bet) || "");
+}
+
 function getBetStatus(bet) {
   if (bet.status) return bet.status;
   return bet.paid ? STATUS_PAID : STATUS_PENDING;
@@ -110,14 +114,15 @@ function createPalpite(brazil, scotland) {
 function buildBetWhatsappText(bet) {
   const brazilFlag = String.fromCodePoint(0x1f1e7, 0x1f1f7);
   const japanFlag = String.fromCodePoint(0x1f1ef, 0x1f1f5);
+  const playerName = betPlayerName(bet);
 
   return [
-    `Olá, Eu sou ${getBetName(bet)}`,
-    `*ID: ${bet.codigo_aposta}*`,
+    `Olá, Eu sou ${playerName}`,
+    `*ID: ${getBetPlayerId(bet)}*`,
     `*Palpite: ${brazilFlag} ${bet.palpite} ${japanFlag}*`,
     "Vou te encaminhar o comprovante de pagamento para validação.",
   ]
-    .map((line, index) => (index === 0 ? line.replace(getBetName(bet), `*${getBetName(bet)}*`) : line))
+    .map((line, index) => (index === 0 ? line.replace(playerName, `*${playerName}*`) : line))
     .join("\n");
 }
 
@@ -138,7 +143,7 @@ function buildBetSchemaPatch(bet, docId) {
   const name = getBetName(bet);
   const palpite = bet.palpite || createPalpite(bet.brazil, bet.scotland);
   const status = getBetStatus(bet);
-  const playerId = bet.playerId || playerIdFromName(name);
+  const playerId = getBetPlayerId({ ...bet, nome_usuario: name });
 
   if (!("id" in bet)) patch.id = code;
   if (!bet.codigo_aposta) patch.codigo_aposta = code;
@@ -207,6 +212,47 @@ async function ensurePlayer(name) {
   return { id: playerId, name: playerName, nameKey };
 }
 
+async function updatePlayerName(currentBet, nextName) {
+  const playerName = normalize(nextName);
+  if (!playerName) {
+    throw new Error("Nome inválido.");
+  }
+
+  const currentPlayerId = getBetPlayerId(currentBet);
+  const nextPlayerId = playerIdFromName(playerName);
+  const nextNameKey = playerKeyFromName(playerName);
+  const duplicatedPlayer = players.find((player) => player.id !== currentPlayerId && player.nameKey === nextNameKey);
+
+  if (duplicatedPlayer) {
+    throw new Error("Já existe um apostador com esse nome.");
+  }
+
+  await setDoc(
+    doc(playersCollection, nextPlayerId),
+    {
+      name: playerName,
+      nameKey: nextNameKey,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  const affectedBets = bets.filter((bet) => getBetPlayerId(bet) === currentPlayerId);
+  await Promise.all(
+    affectedBets.map((bet) =>
+      updateDoc(doc(betsCollection, bet.id), {
+        playerId: nextPlayerId,
+        nome_usuario: playerName,
+        name: playerName,
+      }),
+    ),
+  );
+
+  if (currentPlayerId !== nextPlayerId) {
+    await deleteDoc(doc(playersCollection, currentPlayerId));
+  }
+}
+
 function renderAdminState() {
   document.body.classList.toggle("is-admin", isAdmin);
   adminLogout.hidden = !isAdmin;
@@ -251,8 +297,10 @@ function filteredBets() {
   return bets
     .filter((bet) => {
       const code = getBetCode(bet);
+      const playerId = getBetPlayerId(bet);
       const numericCode = String(Number(code));
-      const text = `${code} ${numericCode} id ${code} id ${numericCode} ${betPlayerName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
+      const text =
+        `${playerId} ${code} ${numericCode} id ${playerId} id ${code} ${betPlayerName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
       const statusMatches = status === "all" || (status === "paid" ? isBetPaid(bet) : !isBetPaid(bet));
       return statusMatches && text.includes(term);
     })
@@ -293,7 +341,7 @@ function renderTable() {
     const row = document.createElement("tr");
     const paid = isBetPaid(bet);
     row.innerHTML = `
-      <td>${getBetCode(bet)}</td>
+      <td>${getBetPlayerId(bet)}</td>
       <td><span class="score-chip">${scoreChipHtml(bet)}</span></td>
       <td>${betPlayerName(bet)}</td>
       <td><span class="status-chip ${paid ? "paid" : ""}">${paid ? "Pago" : "Pendente"}</span></td>
@@ -302,6 +350,7 @@ function renderTable() {
           isAdmin
             ? `<div class="row-actions">
                 <button class="small-button" type="button" data-action="toggle" data-id="${bet.id}">${paid ? "Pendente" : "Pago"}</button>
+                <button class="small-button" type="button" data-action="edit-name" data-id="${bet.id}">Editar nome</button>
                 <button class="small-button remove" type="button" data-action="remove" data-id="${bet.id}">Remover</button>
               </div>`
             : ""
@@ -448,8 +497,7 @@ form.addEventListener("submit", async (event) => {
     form.reset();
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
-    message.textContent =
-      "Seu palpite est\u00e1 salvo como pendente. Clique No n\u00famero abaixo e envie o comprovante de pagamento para valida\u00e7\u00e3o!";
+    message.textContent = `Seu palpite está salvo como pendente. Seu ID é ${player.id}. Clique no número abaixo e envie o comprovante de pagamento para validação.`;
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
@@ -478,12 +526,20 @@ table.addEventListener("click", async (event) => {
       });
     }
 
+    if (action === "edit-name") {
+      const nextName = prompt("Novo nome do apostador:", betPlayerName(currentBet));
+      if (nextName === null) return;
+
+      await updatePlayerName(currentBet, nextName);
+      message.textContent = "Nome do apostador atualizado.";
+    }
+
     if (action === "remove") {
       await deleteDoc(doc(betsCollection, id));
     }
   } catch (error) {
     console.error(error);
-    message.textContent = "Não foi possível atualizar esse palpite.";
+    message.textContent = error.message || "Não foi possível atualizar esse palpite.";
   }
 });
 
