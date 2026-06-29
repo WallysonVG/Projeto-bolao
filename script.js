@@ -3,7 +3,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
   getFirestore,
   onSnapshot,
   orderBy,
@@ -13,33 +12,6 @@ import {
   setDoc,
   updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const initialBets = [
-  { id: "initial-001", brazil: 4, scotland: 0, name: "Naldo", paid: true },
-  { id: "initial-002", brazil: 4, scotland: 1, name: "Naldo", paid: true },
-  { id: "initial-003", brazil: 4, scotland: 2, name: "Naldo", paid: true },
-  { id: "initial-004", brazil: 3, scotland: 1, name: "Willans", paid: true },
-  { id: "initial-005", brazil: 2, scotland: 0, name: "Sibeli", paid: true },
-  { id: "initial-006", brazil: 2, scotland: 1, name: "Sibeli", paid: true },
-  { id: "initial-007", brazil: 2, scotland: 1, name: "Lucas Emanuel", paid: true },
-  { id: "initial-008", brazil: 2, scotland: 1, name: "Ana Paula", paid: true },
-  { id: "initial-009", brazil: 2, scotland: 1, name: "Juciara", paid: true },
-  { id: "initial-010", brazil: 0, scotland: 1, name: "Anna", paid: true },
-  { id: "initial-011", brazil: 2, scotland: 1, name: "Nalanda", paid: true },
-  { id: "initial-012", brazil: 2, scotland: 0, name: "Cristina", paid: true },
-  { id: "initial-013", brazil: 2, scotland: 1, name: "Kimberly", paid: true },
-  { id: "initial-014", brazil: 1, scotland: 2, name: "Matos", paid: true },
-  { id: "initial-015", brazil: 2, scotland: 0, name: "Raida", paid: true },
-  { id: "initial-016", brazil: 3, scotland: 0, name: "Ana Pollyana", paid: true },
-  { id: "initial-017", brazil: 2, scotland: 0, name: "Lucas Sampaio", paid: true },
-  { id: "initial-018", brazil: 2, scotland: 0, name: "Fernando", paid: true },
-  { id: "initial-019", brazil: 3, scotland: 1, name: "Fernando", paid: true },
-  { id: "initial-020", brazil: 1, scotland: 0, name: "Maida", paid: true },
-  { id: "initial-021", brazil: 5, scotland: 1, name: "Wallyson", paid: true },
-  { id: "initial-022", brazil: 3, scotland: 0, name: "GG", paid: true },
-  { id: "initial-023", brazil: 5, scotland: 0, name: "GG", paid: true },
-  { id: "initial-024", brazil: 2, scotland: 2, name: "Anna", paid: true },
-];
 
 const ADMIN_SESSION_KEY = "sps-saude-bolao-admin";
 const SITE_LINK = "https://wallysonvg.github.io/Projeto-bolao/";
@@ -325,30 +297,6 @@ function render() {
   renderGroups();
 }
 
-async function seedInitialBetsIfEmpty() {
-  const snapshot = await getDocs(betsCollection);
-  if (!snapshot.empty) return;
-
-  await Promise.all(
-    initialBets.map((bet, index) =>
-      setDoc(doc(betsCollection, bet.id), {
-        id: bet.id,
-        codigo_aposta: bet.id,
-        nome_usuario: bet.name,
-        palpite: createPalpite(bet.brazil, bet.scotland),
-        status: bet.paid ? STATUS_PAID : STATUS_PENDING,
-        data_criacao: new Date(2026, 0, index + 1),
-        data_validacao: bet.paid ? new Date(2026, 0, index + 1) : null,
-        brazil: bet.brazil,
-        scotland: bet.scotland,
-        name: bet.name,
-        paid: bet.paid,
-        createdAt: new Date(2026, 0, index + 1),
-      }),
-    ),
-  );
-}
-
 function listenToBets() {
   onSnapshot(
     betsQuery,
@@ -500,9 +448,4 @@ statusFilter.addEventListener("change", render);
 
 render();
 
-seedInitialBetsIfEmpty()
-  .then(listenToBets)
-  .catch((error) => {
-    console.error(error);
-    message.textContent = "Não foi possível conectar ao Firebase.";
-  });
+listenToBets();
