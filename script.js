@@ -200,7 +200,9 @@ function filteredBets() {
 
   return bets
     .filter((bet) => {
-      const text = `${getBetCode(bet)} ${getBetName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
+      const code = getBetCode(bet);
+      const numericCode = String(Number(code));
+      const text = `${code} ${numericCode} id ${code} id ${numericCode} ${getBetName(bet)} ${bet.brazil}x${bet.scotland} ${getBetStatus(bet)}`.toLowerCase();
       const statusMatches = status === "all" || (status === "paid" ? isBetPaid(bet) : !isBetPaid(bet));
       return statusMatches && text.includes(term);
     })
