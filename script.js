@@ -134,12 +134,10 @@ function createPalpite(brazil, scotland) {
 
 function buildBetWhatsappText(bet) {
   return [
-    "Nova aposta realizada.",
-    `ID da aposta: ${bet.codigo_aposta}`,
-    `Usuario: ${getBetName(bet)}`,
+    `Olá, Eu sou ${getBetName(bet)}`,
+    `ID do palpite: ${bet.codigo_aposta}`,
     `Palpite: ${bet.palpite}`,
-    "Status: PENDENTE",
-    "Aguardando confirmacao do pagamento.",
+    "Vou te encaminhar o comprovante de pagamento para validação.",
   ].join("\n");
 }
 
@@ -152,17 +150,6 @@ function updatePixWhatsappLink(bet) {
 
   pixKey.href = buildBetWhatsappUrl(bet);
   pixKey.title = "Clique para enviar os dados da aposta no WhatsApp";
-}
-
-function notifyAdmin(bet, targetWindow) {
-  const url = buildBetWhatsappUrl(bet);
-
-  if (targetWindow && !targetWindow.closed) {
-    targetWindow.location.href = url;
-    return;
-  }
-
-  window.open(url, "_blank", "noopener");
 }
 
 function buildBetSchemaPatch(bet, docId) {
@@ -397,12 +384,9 @@ form.addEventListener("submit", async (event) => {
 
   lastPalpiteText = `${scoreLabel({ brazil, scotland })} - ${name}`;
 
-  let adminNotificationWindow = null;
-
   try {
     const code = await createUniqueBetCode();
     const palpite = createPalpite(brazil, scotland);
-    adminNotificationWindow = window.open("", "_blank");
     const newBet = {
       id: code,
       codigo_aposta: code,
@@ -421,18 +405,14 @@ form.addEventListener("submit", async (event) => {
 
     await setDoc(doc(betsCollection, code), newBet);
     updatePixWhatsappLink(newBet);
-    notifyAdmin({ ...newBet, data_criacao: new Date() }, adminNotificationWindow);
     form.reset();
     document.querySelector("#brazil").value = 2;
     document.querySelector("#scotland").value = 1;
     message.textContent =
-      "Seu palpite foi salvo como pendente. O WhatsApp foi aberto com ID, nome e palpite para envio do comprovante.";
+      "Seu palpite foi salvo como pendente. Clique no número Pix para enviar o comprovante pelo WhatsApp.";
     message.dataset.copyText = "";
     message.classList.remove("clickable");
   } catch (error) {
-    if (adminNotificationWindow && !adminNotificationWindow.closed) {
-      adminNotificationWindow.close();
-    }
     console.error(error);
     message.textContent = "Não foi possível salvar seu palpite. Tente novamente.";
   }
