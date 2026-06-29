@@ -106,8 +106,8 @@ function createPalpite(brazil, scotland) {
 }
 
 function buildBetWhatsappText(bet) {
-  const brazilFlag = "\u{1F1E7}\u{1F1F7}";
-  const japanFlag = "\u{1F1EF}\u{1F1F5}";
+  const brazilFlag = String.fromCodePoint(0x1f1e7, 0x1f1f7);
+  const japanFlag = String.fromCodePoint(0x1f1ef, 0x1f1f5);
 
   return [
     `Olá, Eu sou ${getBetName(bet)}`,
