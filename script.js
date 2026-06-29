@@ -48,6 +48,7 @@ const copyButton = document.querySelector("#copy-whatsapp");
 const adminForm = document.querySelector("#admin-form");
 const adminPassword = document.querySelector("#admin-password");
 const adminMessage = document.querySelector("#admin-message");
+const adminReset = document.querySelector("#admin-reset");
 const adminLogout = document.querySelector("#admin-logout");
 
 let lastPalpiteText = "";
@@ -157,6 +158,7 @@ function formatCurrency(value) {
 function renderAdminState() {
   document.body.classList.toggle("is-admin", isAdmin);
   adminLogout.hidden = !isAdmin;
+  adminReset.hidden = !isAdmin;
   adminPassword.hidden = isAdmin;
 
   if (isAdmin) {
@@ -392,6 +394,25 @@ table.addEventListener("click", async (event) => {
   } catch (error) {
     console.error(error);
     message.textContent = "Não foi possível atualizar esse palpite.";
+  }
+});
+
+adminReset.addEventListener("click", async () => {
+  if (!isAdmin) return;
+
+  const confirmed = confirm("Tem certeza que deseja resetar todos os palpites? Essa ação não pode ser desfeita.");
+  if (!confirmed) return;
+
+  try {
+    adminReset.disabled = true;
+    await Promise.all(bets.map((bet) => deleteDoc(doc(betsCollection, bet.id))));
+    await setDoc(betCounterDoc, { lastCode: 0, updatedAt: serverTimestamp() }, { merge: true });
+    adminMessage.textContent = "Palpites resetados.";
+  } catch (error) {
+    console.error(error);
+    adminMessage.textContent = "Não foi possível resetar os palpites.";
+  } finally {
+    adminReset.disabled = false;
   }
 });
 
