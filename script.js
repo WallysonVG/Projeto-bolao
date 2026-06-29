@@ -106,12 +106,17 @@ function createPalpite(brazil, scotland) {
 }
 
 function buildBetWhatsappText(bet) {
+  const brazilFlag = "\u{1F1E7}\u{1F1F7}";
+  const japanFlag = "\u{1F1EF}\u{1F1F5}";
+
   return [
     `Olá, Eu sou ${getBetName(bet)}`,
-    `ID do palpite: ${bet.codigo_aposta}`,
-    `Palpite: ${bet.palpite}`,
+    `*ID: ${bet.codigo_aposta}*`,
+    `*Palpite: ${brazilFlag} ${bet.palpite} ${japanFlag}*`,
     "Vou te encaminhar o comprovante de pagamento para validação.",
-  ].join("\n");
+  ]
+    .map((line, index) => (index === 0 ? line.replace(getBetName(bet), `*${getBetName(bet)}*`) : line))
+    .join("\n");
 }
 
 function buildBetWhatsappUrl(bet) {
